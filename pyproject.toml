@@ -1,0 +1,22 @@
+[project]
+name = "dadb"
+version = "0.9.5"
+dependencies = ["tqdm", "python-dateutil", "apsw", "pytz", "python-magic", "libarchive-c"]
+requires-python = ">=3.8"
+authors = [ {name = "Netherlands Forensic Institute"} ]
+description = "Data Analysis DataBase"
+readme = "README.md"
+keywords = ["analysis", "forensics", "sqlite"]
+classifiers=[
+	"Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3 :: Only"
+]
+
+[tool.setuptools]
+packages = ["dadb"]
+
+[project.urls]
+Repository = "https://github.com/NetherlandsForensicInstitute/dadb"
+
