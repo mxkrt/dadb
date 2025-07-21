@@ -41,12 +41,8 @@ FIELDPREFIX = '_'
 def version():
     ''' return the version of DADB '''
 
-    _modulepath = _path.abspath(__file__)
-    _moduledir = _path.split(_modulepath)[0]
-    _versionfile = _path.join(_moduledir, 'VERSION')
-    with open(_versionfile, 'rt') as f:
-        version = f.readline()
-        return version
+    import importlib.metadata
+    return importlib.metadata.version("dadb")
 
 
 def progresswrapper(sequence, desc=None, unit='rec'):
