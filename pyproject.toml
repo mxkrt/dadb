@@ -1,7 +1,14 @@
 [project]
 name = "dadb"
-version = "0.9.5"
-dependencies = ["tqdm", "python-dateutil", "apsw", "pytz", "python-magic", "libarchive-c"]
+version = "0.9.6"
+dependencies = [
+	"tqdm",
+	"python-dateutil",
+	"apsw",
+	"pytz",
+	"python-magic",
+	"libarchive-c"
+]
 requires-python = ">=3.8"
 authors = [ {name = "Netherlands Forensic Institute"} ]
 description = "Data Analysis DataBase"
@@ -20,3 +27,5 @@ packages = ["dadb"]
 [project.urls]
 Repository = "https://github.com/NetherlandsForensicInstitute/dadb"
 
+[tool.distutils.bdist_wheel]
+universal = false
