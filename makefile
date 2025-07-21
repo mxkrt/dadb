@@ -5,30 +5,38 @@ help:
 	@echo
 	@echo "makefile targets"
 	@echo "----------------"
-	@echo "  make wheel       - create python3 wheel"
-	@echo "  make clean       - remove build data and compiled files"
-	@echo "  make install     - install via pip3"
-	@echo "  make uninstall   - uninstall via pip3"
+	@echo "  make venv      - create new virtualenv in ~/.virtualenvs/dadb"
+	@echo "  make install   - install dadb in currently activated virtualenv"
+	@echo "  make clean     - cleanup temporary files"
+	@echo "  make uninstall - uninstall dadb from currently activated virtualenv"
+	@echo "  make purge     - remove ~/.virtualenvs/dadb"
 	@echo ""
-
-.PHONY: wheel
-wheel:
-	python3 setup.py bdist_wheel
-	rm -rf dadb.egg-info
-	rm -rf build
-	rm -rf dadb/__pycache__
 
 .PHONY: clean
 clean:
-	rm -rf dadb.egg-info
-	rm -rf build
 	rm -rf dadb/__pycache__
+
+.PHONY: venv
+venv:
+	@echo "Creating new virtualenv ~/.virtualenvs/dadb"
+	@python3 -m venv ~/.virtualenvs/dadb
+	@echo
+	@echo "Activate dadb virtualenv as follows:"
+	@echo
+	@echo ". ~/.virtualenvs/dadb/bin/activate"
+	@echo
 
 .PHONY: install
 install:
+	@echo "Installing dadb in currently activated virtualenv"
 	pip3 install .
 
 .PHONY: uninstall
 uninstall:
+	@echo "Removing dadb from currently activated virtualenv"
 	pip3 uninstall dadb
 
+.PHONY: purge
+purge:
+	@echo "removing virtualenv ~/.virtualenvs/dadb"
+	rm -rf ~/.virtualenvs/dadb
