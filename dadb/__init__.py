@@ -1,6 +1,6 @@
 ''' __init__.py - module initialization for DADB
 
-Copyright (c) 2023 Netherlands Forensic Institute - MIT License
+Copyright (c) 2024 Netherlands Forensic Institute - MIT License
 '''
 
 import platform as _platform
@@ -30,6 +30,7 @@ from .models import filesetmodel
 from .models import libmagicmodel
 from .models import archivemodel
 from .models import decompressmodel
+from .models import zipmodel
 from .models import stringsmodel
 
 
@@ -42,4 +43,5 @@ def register_all_models(db):
     libmagicmodel.register_with_db(db)
     archivemodel.register_with_db(db)
     decompressmodel.register_with_db(db)
+    zipmodel.register_with_db(db)
     stringsmodel.register_with_db(db)

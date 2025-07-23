@@ -1,10 +1,10 @@
 ''' archivemodel.py - models and functions related to extraction of archives
 
-Copyright (c) 2023 Netherlands Forensic Institute - MIT License
+Copyright (c) 2023-2025 Netherlands Forensic Institute - MIT License
+Copyright (c) 2024-2025 mxkrt@lsjam.nl - MIT License
 '''
 
 import libarchive as _libarchive
-import zipfile as _zipfile
 import tarfile as _tarfile
 import stat as _stat
 import os as _os
@@ -60,9 +60,6 @@ modeldef = _model_def(MODELNAME,
                       MODELDESCRIPTION, MODELVERSION,
                       implicit_dedup=True, fail_on_dup=True)
 
-
-# files that can be extracted using zipfile
-ZIP_MIMES = ['application/zip', 'application/java-archive']
 
 # files that can be extracted using tarfile
 # NOTE: some mime types can be a compressed tar, or simply a compressed binary file
@@ -200,7 +197,9 @@ def insert(db, fileid):
             # keep the partially extracted files
             fset = _fsetmodel.insert(db, label, tuple(rowids))
             # insert parent relations and set root to original fileid
-            _fparentmodel.insert_files(db, rowids, fileid)
+            # TODO: disabled this since partially extracted files may lead to an
+            # incomplete hierarchy. Consider some other solution
+            #_fparentmodel.insert_files(db, rowids, fileid)
         # create modelitem with error and potential fileset
         m = db.make_modelitem(MODELNAME, file=fileid, contents=fset, error=repr(e), type_=archive_type)
         rowid = db.insert_modelitem(m)
@@ -395,11 +394,7 @@ def _detect_type(libmagicitem):
     ''' return the archive type or None if the type is not recognized '''
 
     # NOTE: order matters here, since libarchive gives less meta-data for some
-    # archive types such as ZIP and TAR
-
-    # check if this is a ZIP type
-    if libmagicitem.mimetype in ZIP_MIMES:
-        return ArchiveType.Zip
+    # archive types such as TAR
 
     if libmagicitem.mimetype in TAR_MIMES:
         return ArchiveType.Tar
@@ -431,6 +426,7 @@ def _archiveround(db, progress=False):
 
     c = 0
     for id_ in todolist:
+        # TODO: try/except here?
         rowid = insert(db, id_)
         c+=1
 
@@ -441,7 +437,7 @@ def _unprocessed_file_ids(db):
     ''' generates file_ids that have not yet been processed as archive '''
 
     # prepare query for files with proper mimetype or substring in magic
-    mimetypes = ZIP_MIMES + TAR_MIMES + [k for k in LIBARCHIVE_MIMES.keys()]
+    mimetypes = TAR_MIMES + [k for k in LIBARCHIVE_MIMES.keys()]
     magic_substrings = LIBARCHIVE_MAGICS
     libmagictable = db.get_tblname(_libmagicmodel.MODELNAME)
     mimetype = db.get_colname(_libmagicmodel.MODELNAME, 'mimetype')
@@ -481,13 +477,13 @@ def _generate_intermediate_dirs(db, dirs_in_filepaths, created_dirs, fileid, dev
     results in a strict file-hierarchy '''
 
     # create virtual entries for the intermediate directories for which
-    # no separate zipinfo item was present
+    # no separate item was present
     user_tag = 'generated intermediate directory as part of extraction of file {:d}'
     user_tag = user_tag.format(fileid)
 
     generated_dirs = set()
 
-    # generate the directories that where not explicitly stored in the zip-file
+    # generate the directories that where not explicitly stored in the file
     for dirpath in dirs_in_filepaths:
         # iterate over all parents of current dir
         for dirname in _dir_parents(dirpath):
@@ -562,7 +558,7 @@ def _files_from_libarchive(db, fileitem, fileid):
             path = e.pathname
             fname = _os.path.basename(path)
 
-            # Note: This could be simplified similar to zip, but it works so kept as is for now.
+            # Note: This could be simplified, but it works so kept as is for now.
             if path.endswith(_os.path.sep):
                 # In some archive types (i.e. 7z), the pathname of
                 # directories may end with a path separator. In this
@@ -652,115 +648,6 @@ def _files_from_libarchive(db, fileitem, fileid):
         yield d
 
 
-def _files_from_zip(db, fileobj, fileid):
-    ''' yields file object from the zip-archive contained in the given file '''
-
-    if fileobj.data is None:
-        # nothing to yield
-        return
-
-    # make sure we start at the beginning
-    if fileobj.data.seekable() is True:
-        fileobj.data.seek(0)
-
-    # try if we can open the file as a zipfile
-    # (will raise BadZipFile error upon failure)
-    zf = _zipfile.ZipFile(fileobj.data)
-
-    # intermediate directories do not always have a separate entry
-    # so we must produce these ourselve. Keep track of all directory
-    # names that are present in the filepaths and keep track of all
-    # directories we have already created
-    dirs_in_filepaths = set()
-    created_dirs = set()
-
-    for name in zf.namelist():
-
-        zinfo = zf.NameToInfo[name]
-
-        # some zip tools store additional metadata, attempt to
-        # extract this from the extra field
-        inode, device, uid, gid = None, None, None, None
-        mtime, atime, ctime, btime = None, None, None, None
-        if len(zinfo.extra) > 0:
-            try:
-                res = _parse_extra(zinfo.extra)
-                if res is not None:
-                    mtime, atime, ctime, btime, uid, gid, inode, device = res
-            except Exception as e:
-                # ignore the extra field if a parsing error ocurred
-                pass
-
-        size = zinfo.file_size
-
-        # zinfo.filename contains full path
-        path = zinfo.filename
-        # strip of trailing path separator
-        path = path.rstrip(_os.path.sep)
-        # Some ZIP files have absolute paths (i.e. starting with '/').
-        # The unzip command strips the forward slash to prevent unpacking
-        # over the root filesystem. We need to do the same to prevent our
-        # file-hierarchy to be messed up.
-        if path.startswith('/'):
-            path = path.lstrip('/')
-        # determine filename
-        fname = _os.path.basename(path)
-
-        password_needed = False
-
-        # keep track of the intermediate directories that are needed so we
-        # can check if they are all explicitly created.
-        # NOTE: this was previously only done for non-directories,
-        # but we encountered a zipfile with some empty directories
-        # for which the intermediate directories had no separate entries
-        # so this was changed both here and in the other files_from... functions
-        dirname = _os.path.dirname(path)
-        if dirname != '':
-            dirs_in_filepaths.add(dirname)
-
-        if zinfo.is_dir() is True:
-            ftype = _fmodel.Filetype.directory
-            created_dirs.add(path)
-            data = None
-        else:
-            # this is a regular file
-            ftype = _fmodel.Filetype.regular_file
-            try:
-                data = zf.open(zinfo.filename)
-            except RuntimeError as e:
-                if "password required" in e.args[0]:
-                    data = None
-                    password_needed = True
-                else:
-                    raise
-
-        if mtime is None:
-            try:
-                mtime = _datetime(*zinfo.date_time)
-            except ValueError:
-                mtime = None
-
-        # always add a user_tag, to prevent full duplicate checking when
-        # duplicates originate in different archives.
-        if password_needed is True:
-            user_tag = 'could not extract from file {:d}; password required'.format(fileid)
-        else:
-            user_tag = 'extracted from file {:d} by archivemodel (zip)'.format(fileid)
-
-        # create the modelitem
-        m = db.make_modelitem(_fmodel.MODELNAME, name=fname, path=path,
-                              size=size, ftype=ftype, mtime=mtime,
-                              atime=atime, ctime=ctime, btime=btime,
-                              inode=inode, device=device, uid=uid, gid=gid,
-                              deleted=_fmodel.Deleted.intact,
-                              data=data, user_tag=user_tag)
-
-        yield m
-
-    for d in _generate_intermediate_dirs(db, dirs_in_filepaths, created_dirs, fileid, device):
-        yield d
-
-
 def _files_from_tar(db, fileobj, fileid):
     ''' yields files from the tar-archive contained in the given file modelitem
     '''
@@ -803,11 +690,19 @@ def _files_from_tar(db, fileobj, fileid):
             if n != '' and n != fname:
                 raise ValueError('path and name property disagree on filename')
 
+        # Strip off the leading path separators, similar to what commandline
+        # tar command does.
+        if path.startswith('/'):
+            path = path[1:]
+        # we sometimes see double forward slash, remove as well
+        if path.startswith('/'):
+            path = path[1:]
+
         # catch other corner-cases here, check if path and name are set
         if fname is None or path is None:
             raise ValueError('path and name parsing problem in tarfile member')
 
-        # Note: this could be simplified similar to zip, but for now kept as is...
+        # Note: this could be simplified similar, but for now kept as is...
         if path.endswith(_os.path.sep):
             # In some archive types (i.e. 7z), the pathname of
             # directories may end with a path separator. In this
@@ -829,7 +724,7 @@ def _files_from_tar(db, fileobj, fileid):
         # keep track of the intermediate directories that are needed so we
         # can check if they are all explicitly created.
         # NOTE: this was previously only done for non-directories,
-        # but we encountered a zipfile with some empty directories
+        # but we encountered a file with some empty directories
         # for which the intermediate directories had no separate entries
         # so this was changed both here and in the other files_from... functions
         dirname = _os.path.dirname(path)
@@ -887,6 +782,17 @@ def _files_from_tar(db, fileobj, fileid):
         # by the regular file. Therefore, set data to None for symbolic links
         if membr.issym():
             data = None
+        elif membr.islnk():
+            # we have seen at least one case where the hardlink name does not
+            # point to another file in the archive, in which case the tarfile
+            # module can not find the data and throws a KeyError. In this
+            # particual example, this was caused by the fact that the link did
+            # not include the leading slash that *was* included in the target
+            # tar member. To prevent crashes, added try-except here.
+            try:
+                data = tarf.extractfile(membr)
+            except:
+                data = None
         else:
             data = tarf.extractfile(membr)
 
@@ -911,8 +817,7 @@ def _get_extract_function(archive_type):
     ''' return the function to be used for extraction '''
 
     # mapping type to file generation function
-    functions = {ArchiveType.Zip: _files_from_zip,
-                 ArchiveType.Tar: _files_from_tar,
+    functions = {ArchiveType.Tar: _files_from_tar,
                  ArchiveType.Cpio: _files_from_libarchive,
                  ArchiveType.SevenZip: _files_from_libarchive}
 
@@ -965,98 +870,3 @@ def _partially_extracted_files(db):
     for restpl in results:
         fileid = restpl[0]
         yield fileid
-
-
-def _parse_extra(data):
-    ''' parse a subset of the extra info stored in some zip files '''
-
-    # default values
-    mtime, atime, ctime, btime = None, None, None, None
-    uid, gid, inode, device = None, None, None, None
-    swap_timestamps = False
-    extra_time = None
-
-    # scan over the data in order to find extra field magics
-    pos = 0
-    maxpos = len(data)-4
-
-    while pos < maxpos:
-        # parse the header
-        magic, size = _unpack('<HH', data[pos:pos+4])
-        # carve out the remaining data for the extra block
-        field = data[pos+4:pos+4+size]
-        # and update our read position
-        pos+=4+size
-
-        if magic == 0x5455:  # UT
-            # the specs (extrafld.txt in zip source tree) defines the order of
-            # timestamps as: Modification Time, Access Time and Creation Time.
-            # This was confirmed by looking at the source of zip version 3.0.
-            # However some formats have an extra timestamp, in which case the
-            # fourth bit is also set.
-            flags = int(field[0])
-            offset = 1
-            # NOTE: added a boundary check because we have seen
-            #       zip files where more than 1 flag was set, but
-            #       only a single timestamp was stored
-            if flags&1 and offset+4 <= size:
-                mtime = _unpack('<I', field[offset:offset+4])[0]
-                mtime = _datetime.fromtimestamp(mtime, _utc)
-                offset += 4
-            if flags&2 and offset+4 <= size:
-                atime = _unpack('<I', field[offset:offset+4])[0]
-                atime = _datetime.fromtimestamp(atime, _utc)
-                offset += 4
-            if flags&4 and offset+4 <= size:
-                btime = _unpack('<I', field[offset:offset+4])[0]
-                btime = _datetime.fromtimestamp(btime, _utc)
-                offset += 4
-            if flags&8 and offset+4 <= size:
-                extra_time = _unpack('<I', field[offset:offset+4])[0]
-                extra_time = _datetime.fromtimestamp(extra_time, _utc)
-                offset += 4
-
-        elif magic == 0x4e49:   # IN
-            inode, device = _unpack("<QI",field)
-
-        elif magic == 0x5855:  # UX
-            if size == 8:
-                atime, mtime = _unpack("<LL", field)
-                atime = _datetime.fromtimestamp(atime, _utc)
-                mtime = _datetime.fromtimestamp(mtime, _utc)
-            elif size == 12:
-                atime, mtime, uid, gid = _unpack("<LLHH", field)
-                atime = _datetime.fromtimestamp(atime, _utc)
-                mtime = _datetime.fromtimestamp(mtime, _utc)
-            else:
-                # this should not happen, ignore entry
-                pass
-
-        elif magic == 0x7875:  # ux
-            version, uidsize = _unpack("<BB", field[0:2])
-            # for now ignore other uid/gid sizes
-            if uidsize == 4:
-                uid, gidsize = _unpack("<IB", field[2:7])
-                if uidsize == 4:
-                    gid = _unpack("<I", field[7:11])[0]
-
-        elif magic == 0x4b47:
-            # observed in some zip files, not 100% sure
-            swap_timestamps = True
-            field0 = field[0]
-            if field0 != 1:
-                raise ValueError("only observed 1 here")
-
-        else:
-            # ignore other blocks silently. Note that we may miss some
-            # interesting properties of extracted files, so when debugging /
-            # developing consider uncommenting this error
-            # raise ValueError("unsupported extra block encountered: {:}".format(magic))
-            pass
-
-    if swap_timestamps is True:
-        # In this case, the order of the timestamps seems different
-        ctime = btime
-        btime = extra_time
-
-    return (mtime, atime, ctime, btime, uid, gid, inode, device)
