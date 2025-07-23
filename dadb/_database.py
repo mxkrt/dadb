@@ -1848,3 +1848,22 @@ class Database:
 
         if modelname not in s.models:
             raise _exceptions.NoSuchModelError("{:s} is not yet registered".format(modelname))
+
+
+    def get_model_dependents(s, modelname):
+        ''' get the modelnames of models that depend on the given model '''
+
+        tablename = s.models[modelname].tabledef.name
+
+        q = '''SELECT modelname_
+                FROM _fieldinfo_
+                JOIN '''+MODELTBLNAME+'''
+                ON _fieldinfo_.modeltable_ == '''+MODELTBLNAME+'''.table_
+                WHERE _fieldinfo_.maps_to_ == ?
+                OR _fieldinfo_.points_to_ == ?
+                '''
+
+        results = [r[0] for r in s.dbcon.cursor().execute(q, (tablename, tablename))]
+
+        results = list(set(results))
+        return results
