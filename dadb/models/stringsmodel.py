@@ -13,6 +13,7 @@ from .. import Database as _Database
 from .. import model_definition as _model_def
 from .. import field_definition as _field_def
 from .. import progresswrapper as _progresswrapper
+from .. import exceptions as _exceptions
 
 from . import filemodel as _filemodel
 from . import archivemodel as _archivemodel
