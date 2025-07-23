@@ -37,6 +37,16 @@ from .. import Data as _Data
 from .. import _exceptions
 
 
+# this work-around allows mmap.mmap object to be passed to ZipFile or other
+# modules that require a seekable property in the mmapped file
+
+class _SeekableMmap(_mmap.mmap):
+    ''' add seekable method to mmap.mmap object '''
+
+    def seekable(s):
+        return True
+
+
 ####################
 # MODEL DEFINITION #
 ####################
@@ -172,7 +182,7 @@ def insert(db, filename, user_tag=None, do_mmap=False):
                 data.seek(0, 2)
                 size = data.tell()
                 data.seek(0)
-                mmapped = _mmap.mmap(data.fileno(), data.tell(), access=_mmap.ACCESS_READ)
+                mmapped = _SeekableMmap(data.fileno(), data.tell(), access=_mmap.ACCESS_READ)
                 try:
                     # store metadata for data object, but not data itself
                     dataid = db.insert_unstored_data(mmapped)
