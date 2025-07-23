@@ -292,15 +292,15 @@ def walk(db, top, with_pkey=False):
 
     For each directory in the directory tree rooted at top, yields a 3-tuple
 
-    dirpath, dirnames, filenames
+    dir, subdirs, files
 
-    dirpath is the full path of the current directory object, dirnames is a
-    list of the names of the subdirectories in dirpath, filenames is a list of
-    the names of the non-directory files in dirpath.
+    dir is the 'file' modelitem representing the current directory object,
+    subdirs is a list of 'file' modelitems representing the subdirectories and
+    files is a list of the 'file' modelitems of the non-directory files in the
+    current directory.
 
     The tree is traversed topdown. The top argument may also be a file that has
-    children (i.e. an archive), but any further archives are treated as normal
-    files.
+    children (i.e. an archive).
 
     If with_pkey is True: the path and the names are returned as 2-tuples
 
@@ -331,12 +331,12 @@ def walk(db, top, with_pkey=False):
         if c[1].ftype.value == _fmodel.Filetype.directory.value:
             dirs.append((c[0], c[1]))
         else:
-            files.append((c[0], c[1].name))
+            files.append((c[0], c[1]))
 
     if with_pkey is True:
-        yield ((topid, top.path), [(d[0],d[1].name) for d in dirs], [(f[0],f[1]) for f in files])
+        yield ((topid, top), [(d[0],d[1]) for d in dirs], [(f[0],f[1]) for f in files])
     else:
-        yield (top.path, [d[1] for d in dirs], [f[1] for f in files])
+        yield (top, [d[1] for d in dirs], [f[1] for f in files])
 
     for d in dirs:
         for c in walk(db, d, with_pkey=with_pkey):
