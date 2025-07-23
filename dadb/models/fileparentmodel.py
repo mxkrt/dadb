@@ -287,6 +287,22 @@ def get_tree(db, file_):
         return path
 
 
+def get_path(db, file_):
+    ''' return constructed path for the given file as a string
+
+    The path is constructed by combining the paths of the individual components
+    in the file-hierarchy as returned by the get_tree function.
+    '''
+
+    if isinstance(file_, int):
+        file_ = _fmodel.get(db, file_)
+    tree = get_tree(db, file_)
+    if len(tree) == 1:
+        return tree[0].path
+    path = tree[0].path + '/' + '/'.join(f.name for f in tree[1:])
+    return path
+
+
 def walk(db, top, with_pkey=False):
     ''' directory tree generator, similar to os.walk
 
