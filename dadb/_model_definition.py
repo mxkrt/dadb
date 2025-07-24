@@ -1,6 +1,7 @@
 ''' _model_definition.py - structures to define models in DADB
 
-Copyright (c) 2023 Netherlands Forensic Institute - MIT License
+Copyright (c) 2023-2025 Netherlands Forensic Institute - MIT License
+Copyright (c) 2024-2025 mxkrt@lsjam.nl - MIT License
 '''
 
 from enum import EnumMeta as _EnumMeta

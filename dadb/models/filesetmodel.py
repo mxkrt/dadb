@@ -1,6 +1,7 @@
 ''' fileset_model - model for defining a group of files in DADB
 
-Copyright (c) 2023 Netherlands Forensic Institute - MIT License
+Copyright (c) 2023-2025 Netherlands Forensic Institute - MIT License
+Copyright (c) 2024-2025 mxkrt@lsjam.nl - MIT License
 
 Conceptually, a fileset is merely an ordered list of file items.
 

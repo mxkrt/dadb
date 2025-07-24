@@ -1,6 +1,7 @@
 ''' data.py - class for reading data items stored in DADB databases
 
-Copyright (c) 2023 Netherlands Forensic Institute - MIT License
+Copyright (c) 2023-2025 Netherlands Forensic Institute - MIT License
+Copyright (c) 2024-2025 mxkrt@lsjam.nl - MIT License
 '''
 
 from io import IOBase as _IOBase

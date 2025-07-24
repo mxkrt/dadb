@@ -1,6 +1,7 @@
 ''' filemodel.py - file model for DADB
 
-Copyright (c) 2023 Netherlands Forensic Institute - MIT License
+Copyright (c) 2023-2025 Netherlands Forensic Institute - MIT License
+Copyright (c) 2024-2025 mxkrt@lsjam.nl - MIT License
 
 Conceptually, a file is an object that contains the most common metadata
 associated with a file, directory or symlink. It also (optionally) contains a
