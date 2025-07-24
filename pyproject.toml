@@ -22,7 +22,7 @@ classifiers=[
 ]
 
 [tool.setuptools]
-packages = ["dadb"]
+packages = ["dadb", "dadb.models"]
 
 [project.urls]
 Repository = "https://github.com/NetherlandsForensicInstitute/dadb"
