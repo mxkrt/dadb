@@ -1867,3 +1867,33 @@ class Database:
 
         results = list(set(results))
         return results
+
+    def _all_fielddescriptors(s):
+        ''' quickly get a list of all fielddescriptors '''
+
+        fds = []
+        for v in s.models.values():
+            fds.extend(v.fielddescriptors.values())
+        return fds
+
+
+    def _all_maptables(s):
+        ''' quickly get a list of all maptable descriptors '''
+
+        mts = []
+        fds = s._all_fielddescriptors()
+        fds = filter(lambda f: f.maptables != [], fds)
+        for f in fds:
+            mts.extend(f.maptables)
+        return mts
+
+
+    def _all_proptables(s):
+        ''' quickly get a list of all proptable descriptors '''
+
+        pts = []
+        fds = s._all_fielddescriptors()
+        fds = filter(lambda f: f.proptable is not None, fds)
+        for f in fds:
+            pts.append(f.proptable)
+        return pts
