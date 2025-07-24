@@ -15,6 +15,8 @@ help:
 .PHONY: clean
 clean:
 	rm -rf dadb/__pycache__
+	rm -rf dadb/test/__pycache__
+	rm -rf dadb/models/__pycache__
 
 .PHONY: venv
 venv:
@@ -40,3 +42,7 @@ uninstall:
 purge:
 	@echo "removing virtualenv ~/.virtualenvs/dadb"
 	rm -rf ~/.virtualenvs/dadb
+
+.PHONY: test
+test:
+	pytest-3 --cov=dadb
