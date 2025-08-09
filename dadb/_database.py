@@ -975,7 +975,7 @@ class Database:
             elif isinstance(fd.types, _EnumMeta):
                 subenums.append(fd.types)
             elif not s._known_datatype(fd.types):
-                msg = 'Unkown datatype in fielddefinition: {:s}'.format(t)
+                msg = 'Unkown datatype in fielddefinition: {:}'.format(fd.types)
                 raise _exceptions.UnsatisfiedDependencyError(msg)
 
         # NOTE that the fielddefinitions may contain models or enums that where
