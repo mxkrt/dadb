@@ -323,7 +323,13 @@ def convert_fielddefinitions(fielddefinitions):
     new_fielddefs = []
 
     for fd in fielddefinitions:
-        if type(fd.types) == mdef_t:
+        if hasattr(fd.types, 'fields') and hasattr(fd.types, 'modelname'):
+            # we have a modelclass
+            tps = _nt(fd.types.modelname, ' '.join([k.name for k in fd.types.fields]))
+            newfd = fd._replace(types=tps)
+            new_fielddefs.append(newfd)
+        elif type(fd.types) == mdef_t:
+            # we have a model definition
             tps = _nt(fd.types.name, ' '.join([k.name for k in fd.types.fielddefs]))
             newfd = fd._replace(types=tps)
             new_fielddefs.append(newfd)
@@ -331,6 +337,9 @@ def convert_fielddefinitions(fielddefinitions):
             # deal with the case in which a tuple is given
             newtypes = []
             for t_ in fd.types:
+                if hasattr(t_, 'fields'):
+                    tp = _nt(t_.modelname, ' '.join([k.name for k in t_.fields]))
+                    newtypes.append(tp)
                 if type(t_) == mdef_t:
                     tp = _nt(t_.name, ' '.join([k.name for k in t_.fielddefs]))
                     newtypes.append(tp)
